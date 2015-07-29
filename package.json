@@ -1,0 +1,6 @@
+{
+	"name": "pg.condense",
+	"dependencies": {
+		"sm.contract": "0.1.x"
+	}
+}
