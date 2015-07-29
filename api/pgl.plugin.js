@@ -30,7 +30,7 @@ resolvedConfig.t = Date.now();
 
 	exports.turn = function (resolvedConfig) {
 
-console.log("TRUN PG.CONDENSE", resolvedConfig);
+//console.log("TRUN PG.CONDENSE", resolvedConfig);
 
 		function getDescriptor () {
 
@@ -86,123 +86,30 @@ console.log("TRUN PG.CONDENSE", resolvedConfig);
 			})();
 		}
 
-		function exportMappings (provenance, config) {
-/*
-			var aliasedPackages = {};
-			for (var alias in mappings) {
-				if (
-					mappings[alias].location &&
-					!/\//.test(alias)
-				) {
-					aliasedPackages[mappings[alias].location] = alias;
-				}
-			}
-*/
-
-
-
-			return getProvenances().then(function (provenances) {
-
-				return API.Q.denodeify(function (callback) {
-					
-/*
-						var finalMappings = {};
-						for (var name in mappings) {
-							finalMappings[name] = {
-								"location": mappings[name].origin + "#" + mappings[name].ref
-							};
-							if (mappings[name].branch !== false) {
-								finalMappings[name].location += "(" + mappings[name].branch + ")";
-							}
-							if (aliasedPackages[mappings[name].realpath]) {
-
-								finalMappings[name].alias = aliasedPackages[mappings[name].realpath];
-*/
-/*
-								finalMappings[aliasedPackages[mappings[name].realpath]] = {
-									"depends": [
-										name
-									],
-									"location": name.replace(/^\.\/\.\.\//, ""),
-									"install": false
-								};
-*/
-/*
-							}
-
-							if (
-								(
-									!resolvedConfig.declaredMappings[name] ||
-									resolvedConfig.declaredMappings[name].install !== true
-								) &&
-								provenances.declaredMappings[name] &&
-								provenances.declaredMappings[name].install === false
-							) {
-								finalMappings[name].install = false;
-							}
-						}
-*/
-
-						
-
-//						function relativizeExtends (descriptor) {
-//							var configStr = JSON.stringify(descriptor);
-//							configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(API.PATH.dirname(API.getRootPath())), "g"), "{{env.PGS_WORKSPACE_ROOT}}");
-//							return JSON.parse(configStr);
-//						}
-
-						function relativize (descriptor) {
-							var configStr = JSON.stringify(descriptor);
-							configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(API.PATH.join(API.PATH.dirname(API.getRootPath()), ".deps")), "g"), "{{env.PGS_PACKAGES_DIRPATH}}");
-							configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(API.PATH.dirname(API.getRootPath())), "g"), "{{env.PGS_WORKSPACE_ROOT}}");
-							configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(process.env.PIO_PROFILE_KEY), "g"), "{{env.PIO_PROFILE_KEY}}");
-							configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(process.env.PIO_PROFILE_PATH), "g"), "{{env.PIO_PROFILE_PATH}}");
-							return JSON.parse(configStr);
-						}
-
-//						descriptor["@extends"] = relativizeExtends(descriptor["@extends"]);
-						descriptor = relativize(descriptor);
-
-
-						if (API.FS.existsSync(resolvedConfig.export.catalog)) {
-							descriptor = API.DEEPMERGE(
-								JSON.parse(API.FS.readFileSync(resolvedConfig.export.catalog, "utf8")),
-								descriptor
-							);
-						}
-
-console.log("CATALOG", resolvedConfig.export.catalog);
-process.exit(1);
-
-						return API.FS.outputFile(
-							resolvedConfig.export.catalog,
-							JSON.stringify(descriptor, null, 4),
-							"utf8",
-							callback
-						);
-
-				})();
-			});
-		}
-
 		function getMappingsForPaths (paths) {
 			var basePath = API.PATH.join(API.getRootPath(), "..");
 			return API.Q.when(SM_CONTRACT.api(module).GetGitStatusForPaths(
 				basePath,
 				paths
 			)).then(function (mappings) {
-				// We remove our own repository from the list if found.
-				if (mappings[""]) {
-					delete mappings[""];
+				var realpathMappings = {};
+				for (var relpath in mappings) {
+					mappings[relpath].relpath = relpath;
+					realpathMappings[mappings[relpath].realpath] = mappings[relpath];
 				}
-				return mappings;
+
+				return realpathMappings;
 			});
 		}
 
 		function deriveDescriptor (config, provenances, mappings) {
+
+//console.log("provenances", provenances);			
+//console.log("mappings", mappings);
+
 			var descriptor = {
-				// TODO: Re-write extends to point to published assets/cats as we don't want to include
-				//       the whole system repo we are extending in our target system.
+				// TODO: Optionally re-write extends to point to published assets/cats as we
+				//		 don't want to include the whole system repo we are extending in our target system.
 				"@extends": {},
 				"config": config,
 				// finalMappings
@@ -214,37 +121,86 @@ process.exit(1);
 				}
 			};
 
-/*
+			Object.keys(provenances).forEach(function (repositoryRealpath) {
 
-			{
-			    "@github.com~sourcemint~sm.expand~0/map": {
-			        "sources": {
-			            "github.com~bash-origin~bash.origin.pinf~0": {
-			                "master": {
-			                    "uri": "git://git@github.com:bash-origin/bash.origin.pinf.git#71f525d08b6804e1b7417a5cb75214035d00ef55(master)"
-			                }
-			            }
-			        },
-			        "mappings": {
-			            "bash.origin": "github.com~bash-origin~bash.origin~0/master"
-			        }
-			    }
-			}
-*/
+				var provenance = provenances[repositoryRealpath];
+				var mapping = mappings[repositoryRealpath];
+
+				var m = mapping.uri.match(/^git:\/\/(git@github\.com:([^\/]+\/.+?)\.git)(#([^\()]*))?(\(([^\)]+)\))?$/);
+				// TODO: Respect version.
+				var mappingsId = "github.com~" + m[2].replace(/\//g, "~") + "~0";
+				var ref = m[4];
+				var branch = m[6] || "master";
+
+				// Exclude our own directory which will have an empty 'relpath'.
+				if (mapping.relpath) {
+					var mappingsAlias = mappingsId;
+					var source = {};
+					source[branch] = {
+						uri: mapping.uri
+					};
+					if (mapping.installer) {
+						source[branch].installer = mapping.installer;
+					}
+					descriptor["@github.com~sourcemint~sm.expand~0/map"].sources[mappingsId] = source;
+					// TODO: Only write mappings if necessary.
+					// descriptor["@github.com~sourcemint~sm.expand~0/map"].mappings[mappingsAlias] = mappingsId;
+				}
+
+				Object.keys(provenances[repositoryRealpath].descriptors).forEach(function (descriptorRealpath) {
+
+					var provenance = provenances[repositoryRealpath].descriptors[descriptorRealpath];
+
+					//var extendsId = mappingsId + "/" + API.PATH.relative(repositoryRealpath, descriptorRealpath);
+					var extendsId = provenance.locatorKey;
+
+					var location = "{{env.PGS_PACKAGES_DIRPATH}}/" + mappingsId + "/source/installed/master/" + API.PATH.relative(repositoryRealpath, descriptorRealpath);
+
+					if (
+						descriptor["@extends"][extendsId] &&
+						descriptor["@extends"][extendsId].location !== location
+					) {
+						throw new Error("All locations for the same extends ID '" + extendsId + "' must point to the same path '" + descriptor["@extends"][extendsId].location + "'!");
+					}
+					descriptor["@extends"][extendsId] = {
+						location: location
+					};
+
+					descriptor["@extends"][extendsId] = API.DEEPMERGE(
+						descriptor["@extends"][extendsId] || {},
+						provenance.config
+					);
+				});
+			});
+
 			return descriptor;
+		}
+
+		function exportMappings (descriptor) {
+					
+			function relativize (descriptor) {
+				var configStr = JSON.stringify(descriptor);
+				configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(API.PATH.join(API.PATH.dirname(API.getRootPath()), ".deps")), "g"), "{{env.PGS_PACKAGES_DIRPATH}}");
+				configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(API.PATH.dirname(API.getRootPath())), "g"), "{{env.PGS_WORKSPACE_ROOT}}");
+				configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(process.env.PIO_PROFILE_KEY), "g"), "{{env.PIO_PROFILE_KEY}}");
+				configStr = configStr.replace(new RegExp(API.ESCAPE_REGEXP_COMPONENT(process.env.PIO_PROFILE_PATH), "g"), "{{env.PIO_PROFILE_PATH}}");
+				return JSON.parse(configStr);
+			}
+
+//			descriptor["@extends"] = relativize(descriptor["@extends"]);
+//			descriptor = relativize(descriptor);
+
+			return API.QFS.write(
+				API.PATH.join(API.getRootPath(), "../pg.json"),
+				JSON.stringify(descriptor, null, 4)
+			);
 		}
 
 		return getDescriptor().then(function (programDescriptor) {
 
-console.log("programDescriptor", programDescriptor);
-
 			return getProvenances(programDescriptor.provenance).then(function (provenances) {
 
-console.log("provenances", provenances);			
-
 				return getMappingsForPaths(Object.keys(provenances)).then(function (mappings) {
-
-console.log("mappings", mappings);
 
 					var condensedDescriptor = deriveDescriptor(
 						programDescriptor.config,
@@ -252,10 +208,7 @@ console.log("mappings", mappings);
 						mappings
 					);
 
-console.log("condensedDescriptor", condensedDescriptor);
-
-//process.exit(1);
-
+					return exportMappings(condensedDescriptor);
 				});
 			});
 		});
