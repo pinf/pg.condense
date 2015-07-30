@@ -21,6 +21,11 @@ exports.for = function (API) {
 
 		return resolver({}).then(function (resolvedConfig) {
 
+// TODO: Enable once we can optionally not include the profile any more
+// (otherwise we will leak private data).\
+
+return resolvedConfig;
+
 // TODO: Only do condensation if we have a reason to do so (i.e. something has changed).
 resolvedConfig.t = Date.now();
 
@@ -32,6 +37,10 @@ resolvedConfig.t = Date.now();
 						console.debug("Skip 'pg.condense' as program descriptor not found at '" + path + "'");
 						return callback(null, null);
 					}
+
+
+					// TODO: When getting the descriptor exclude the profile overlay.
+
 					return API.loadProgramDescriptor(function (err, programDescriptor) {
 						if (err) return callback(err);
 						return callback(null, {
@@ -124,6 +133,8 @@ resolvedConfig.t = Date.now();
 					var ref = m[4];
 					var branch = m[6] || "master";
 
+/*
+TODO: Remove this as we now declare all extends locators in sm mappings anyway.
 					// Exclude our own directory which will have an empty 'relpath'.
 					if (mapping.relpath) {
 						var mappingsAlias = mappingsId;
@@ -138,7 +149,7 @@ resolvedConfig.t = Date.now();
 						// TODO: Only write mappings if necessary.
 						// descriptor["@github.com~sourcemint~sm.expand~0/map"].mappings[mappingsAlias] = mappingsId;
 					}
-
+*/
 					Object.keys(provenances[repositoryRealpath].descriptors).forEach(function (descriptorRealpath) {
 
 						var provenance = provenances[repositoryRealpath].descriptors[descriptorRealpath];
