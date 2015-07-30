@@ -23,6 +23,26 @@ exports.for = function (API) {
 
 // TODO: Enable once we can optionally not include the profile any more
 // (otherwise we will leak private data).\
+/*
+
+Write extends URIs as follows?:
+
+{
+    "@extends": {
+        "03-vm.pinf.io/PINF.proto/server-services~0.sm.json": {
+            "location": "!{{env.PGS_PACKAGES_DIRPATH}}/03-vm.pinf.io/PINF.proto/server-services~0.sm.json",
+            "@args": {}
+        },
+        "03-vm.pinf.io/PINF.core.json": {
+            "location": "!{{env.PGS_PACKAGES_DIRPATH}}/03-vm.pinf.io/PINF.core.json",
+            "@args": {}
+        },
+        "03-pinf.tools.ScriptedCloud/PINF.proto/dns~0.sm.json": {
+            "location": "!{{env.PGS_PACKAGES_DIRPATH}}/03-pinf.tools.ScriptedCloud/PINF.proto/dns~0.sm.json",
+            "@args": {}
+        },
+
+*/
 
 return resolvedConfig;
 
