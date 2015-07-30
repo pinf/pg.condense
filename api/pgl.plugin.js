@@ -3,6 +3,7 @@
 exports.for = function (API) {
 
 	const SM_CONTRACT = require("sm.contract");
+	const CJSON = require("canonical-json");
 
 	var exports = {};
 

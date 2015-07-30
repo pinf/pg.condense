@@ -1,6 +1,7 @@
 {
-	"name": "pg.condense",
-	"dependencies": {
-		"sm.contract": "0.1.x"
-	}
+  "name": "pg.condense",
+  "dependencies": {
+    "canonical-json": "0.0.4",
+    "sm.contract": "0.1.x"
+  }
 }
